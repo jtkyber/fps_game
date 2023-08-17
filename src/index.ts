@@ -1,6 +1,11 @@
 import Player2d from './player2d';
+import Players from './players';
+import { ISocketDataReq, ISocketDataRes } from './types';
 import Walls2d from './walls2d';
 import Walls3d from './walls3d';
+
+// Use wss (secure) instead of ws for produciton
+const socket = new WebSocket('ws://localhost:3000/server');
 
 const world2d = <HTMLCanvasElement>document.getElementById('world2d');
 const world3d = <HTMLCanvasElement>document.getElementById('world3d');
@@ -13,12 +18,19 @@ const fpsElement = <HTMLHeadingElement>document.getElementById('fpsCounter');
 let walls2d: Walls2d;
 let walls3d: Walls3d;
 let player2d: Player2d;
+let players: Players;
 
 let fpsInterval: number, now: number, then: number, elapsed: number, requestID: number;
 let frameCount: number = 0;
 const frameRate = 75;
 
 let devMode = true;
+
+let userId: any;
+let lastRecordedPlayerPos = {
+	x: 0,
+	y: 0,
+};
 
 const setFramerateValue = () => {
 	fpsElement.innerText = frameCount.toString();
@@ -43,15 +55,43 @@ const gameLoop = () => {
 		ctx3d.clearRect(0, 0, world3d.width, world3d.height);
 
 		walls2d.draw();
-		player2d.draw();
+		players.draw();
+		player2d.draw(players.players);
+		walls3d.setbgTopX(player2d.rotAmt, player2d.rotDir);
 		walls3d.draw(
 			player2d.rays,
 			player2d.objectTypes,
 			player2d.objectDirs,
 			player2d.playerX,
 			player2d.playerY,
-			player2d.rayAngles
+			player2d.rayAngles,
+			player2d.playerRays
 		);
+
+		one: if (player2d.playerX !== lastRecordedPlayerPos.x || player2d.playerY !== lastRecordedPlayerPos.y) {
+			lastRecordedPlayerPos.x = player2d.playerX;
+			lastRecordedPlayerPos.y = player2d.playerY;
+
+			players.setUserCoords(lastRecordedPlayerPos.x, lastRecordedPlayerPos.y);
+
+			if (!userId) break one;
+
+			const data: ISocketDataReq = {
+				action: 'update-player-pos',
+				id: userId,
+				data: {
+					x: lastRecordedPlayerPos.x,
+					y: lastRecordedPlayerPos.y,
+				},
+			};
+			socket.send(JSON.stringify(data));
+		}
+
+		ctx3d.fillStyle = `rgba(0,255,0,1)`;
+		ctx3d.lineWidth = 2;
+		ctx3d.beginPath();
+		ctx3d.ellipse(world3d.width / 2, world3d.height / 2.5, 5, 5, 0, 0, 2 * Math.PI);
+		ctx3d.fill();
 	}
 };
 
@@ -68,6 +108,7 @@ const setUp = () => {
 		walls2d.wallH
 	);
 	player2d.setUp();
+	players = new Players(world2d, ctx2d);
 	gameLoop();
 };
 
@@ -79,6 +120,7 @@ window.onload = () => {
 document.addEventListener('mousemove', e => {
 	if (!devMode) {
 		player2d.setMouseRotation(e.movementX / 20);
+		walls3d.setBgTopXMouseMove(e.movementX);
 	}
 });
 
@@ -128,5 +170,46 @@ document.addEventListener('keyup', e => {
 				document.exitPointerLock || document.mozExitPointerLock || document.webkitExitPointerLock;
 			document.exitPointerLock();
 		}
+	}
+});
+
+socket.addEventListener('open', () => {
+	console.log('User connected');
+});
+
+socket.addEventListener('message', event => {
+	const res: ISocketDataRes = JSON.parse(event.data);
+	let data: ISocketDataReq;
+
+	switch (res?.action) {
+		case 'set-user-id':
+			console.log('UserId has been set');
+			userId = res.data;
+
+			if (!userId) return;
+			data = {
+				action: 'send-user-to-clients',
+				id: userId,
+				data: '',
+			};
+			socket.send(JSON.stringify(data));
+			break;
+		case 'send-user-to-clients':
+			players.addPlayer(res.data);
+
+			// if (!userId) return;
+			// data = {
+			// 	action: 'send-user-to-clients',
+			// 	id: userId,
+			// 	data: '',
+			// };
+			// socket.send(JSON.stringify(data));
+			break;
+		case 'update-player-pos':
+			players.updatePlayerPos({ name: res.data.playerId, x: res.data.x, y: res.data.y });
+			break;
+		case 'remove-player':
+			players.removePlayer(res.data);
+			break;
 	}
 });

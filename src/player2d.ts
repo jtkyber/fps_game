@@ -1,3 +1,5 @@
+import { IPlayer, IPlayerRays } from './types';
+
 export default class Player2d {
 	private world2d: HTMLCanvasElement;
 	private ctx2d: CanvasRenderingContext2D;
@@ -18,8 +20,8 @@ export default class Player2d {
 	private distToProjectionPlane: number;
 	public rayAngles: Float32Array | null;
 	private rayDensityAdjustment: number;
-	private rotDir: string | null;
-	private rotAmt: number;
+	public rotDir: string | null;
+	public rotAmt: number;
 	private moveDirFB: string | null;
 	private moveAmtStart: number;
 	private moveAmt: number;
@@ -34,6 +36,8 @@ export default class Player2d {
 	public playerX: number;
 	public playerY: number;
 	public devMode: boolean;
+	public playerRays: IPlayerRays[];
+	public playerL: number;
 
 	constructor(
 		world2d: HTMLCanvasElement,
@@ -62,7 +66,7 @@ export default class Player2d {
 		this.angle = this.rotation + 90;
 		this.distToProjectionPlane = world2d.width / 2 / Math.tan(this.fovRad / 2);
 		this.rayAngles = null;
-		this.rayDensityAdjustment = 18;
+		this.rayDensityAdjustment = 12;
 		this.rotDir = null;
 		this.rotAmt = 0.2;
 		this.moveDirFB = null;
@@ -76,9 +80,11 @@ export default class Player2d {
 			right: Infinity,
 			backward: Infinity,
 		};
-		this.playerX = this.world2d.width / 2;
-		this.playerY = this.world2d.height / 2;
+		this.playerX = 100;
+		this.playerY = 100;
 		this.devMode = true;
+		this.playerRays = [];
+		this.playerL = 20;
 	}
 
 	public setUp() {
@@ -198,13 +204,24 @@ export default class Player2d {
 		y1: number,
 		x2: number,
 		y2: number,
-		rot: number
+		rot: number,
+		p4?: { x: number; y: number }
 	) => {
 		const adjustedAngle = theta + rot * (Math.PI / 180);
 		const x3 = x;
 		const y3 = y;
-		const x4 = x + r * Math.cos(adjustedAngle);
-		const y4 = y + r * Math.sin(adjustedAngle);
+		let x4;
+		let y4;
+		let uMax = Infinity;
+		if (p4?.x && p4?.y) {
+			x4 = p4.x;
+			y4 = p4.y;
+			uMax = 1;
+		} else {
+			x4 = x + r * Math.cos(adjustedAngle);
+			y4 = y + r * Math.sin(adjustedAngle);
+		}
+
 		const denom = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4);
 
 		if (denom == 0) {
@@ -212,7 +229,7 @@ export default class Player2d {
 		}
 		const t = ((x1 - x3) * (y3 - y4) - (y1 - y3) * (x3 - x4)) / denom;
 		const u = ((x1 - x3) * (y1 - y2) - (y1 - y3) * (x1 - x2)) / denom;
-		if (t > 0 && t < 1 && u > 0) {
+		if (t >= 0 && t <= 1 && u >= 0 && u <= uMax) {
 			const px = x3 + u * (x4 - x3);
 			const py = y3 + u * (y4 - y3);
 			return [px, py];
@@ -227,7 +244,8 @@ export default class Player2d {
 		x: number,
 		y: number,
 		rayAngle: number,
-		rotation: number
+		rotation: number,
+		p4?: { x: number; y: number }
 	) {
 		const r = 1;
 		const x1 = k * this.wallW;
@@ -249,7 +267,7 @@ export default class Player2d {
 		for (let n = 0; n < 4; n++) {
 			switch (n) {
 				case 0:
-					const intersectionTop = this.getIntersection(x, y, r, rayAngle, x1, y1, x2, y2, rotation);
+					const intersectionTop = this.getIntersection(x, y, r, rayAngle, x1, y1, x2, y2, rotation, p4);
 					if (intersectionTop) {
 						const dx = Math.abs(x - intersectionTop[0]);
 						const dy = Math.abs(y - intersectionTop[1]);
@@ -264,7 +282,7 @@ export default class Player2d {
 
 					break;
 				case 1:
-					const intersectionRight = this.getIntersection(x, y, r, rayAngle, x2, y2, x3, y3, rotation);
+					const intersectionRight = this.getIntersection(x, y, r, rayAngle, x2, y2, x3, y3, rotation, p4);
 					if (intersectionRight) {
 						const dx = Math.abs(x - intersectionRight[0]);
 						const dy = Math.abs(y - intersectionRight[1]);
@@ -278,7 +296,7 @@ export default class Player2d {
 					}
 					break;
 				case 2:
-					const intersectionBot = this.getIntersection(x, y, r, rayAngle, x3, y3, x4, y4, rotation);
+					const intersectionBot = this.getIntersection(x, y, r, rayAngle, x3, y3, x4, y4, rotation, p4);
 					if (intersectionBot) {
 						const dx = Math.abs(x - intersectionBot[0]);
 						const dy = Math.abs(y - intersectionBot[1]);
@@ -292,7 +310,7 @@ export default class Player2d {
 					}
 					break;
 				case 3:
-					const intersectionLeft = this.getIntersection(x, y, r, rayAngle, x4, y4, x1, y1, rotation);
+					const intersectionLeft = this.getIntersection(x, y, r, rayAngle, x4, y4, x1, y1, rotation, p4);
 					if (intersectionLeft) {
 						const dx = Math.abs(x - intersectionLeft[0]);
 						const dy = Math.abs(y - intersectionLeft[1]);
@@ -315,9 +333,11 @@ export default class Player2d {
 		};
 	}
 
-	public draw() {
+	public draw(players: IPlayer[]) {
 		const x = this.playerX;
 		const y = this.playerY;
+
+		this.playerRays = [];
 
 		this.move();
 
@@ -354,18 +374,77 @@ export default class Player2d {
 			}
 
 			if (closest) {
-				this.ctx2d.beginPath();
-				this.ctx2d.moveTo(x, y);
-				this.ctx2d.lineTo(closest[0], closest[1]);
-				this.ctx2d.strokeStyle = `rgba(255,255,255,${this.rayOpacity})`;
-				this.ctx2d.lineWidth = 1;
-				this.ctx2d.stroke();
+				if (this.devMode) {
+					this.ctx2d.beginPath();
+					this.ctx2d.moveTo(x, y);
+					this.ctx2d.lineTo(closest[0], closest[1]);
+					this.ctx2d.strokeStyle = `rgba(255,255,255,${this.rayOpacity})`;
+					this.ctx2d.lineWidth = 1;
+					this.ctx2d.stroke();
+				}
 
 				this.rays[i] = record;
 				if (this.objectTypes) this.objectTypes[i] = objTypeTemp;
 				if (this.objectDirs) this.objectDirs[i] = objDirTemp;
 			} else {
 				this.rays[i] = Infinity;
+			}
+		}
+
+		loop1: for (let i = 0; i < players.length; i++) {
+			const p = players[i];
+			for (let j = 0; j < this.wallRows; j++) {
+				for (let k = 0; k < this.wallCols; k++) {
+					const wall = this.walls[j * this.wallCols + k];
+					if (wall === 0) continue;
+
+					const rectIntersection: {
+						record: number;
+						closest: number[] | null;
+						dir: number;
+					} = this.getIntersectionsForRect(j, k, x, y, 0, rotation, { x: p.x, y: p.y });
+
+					if (rectIntersection?.closest?.[0]) continue loop1;
+				}
+			}
+
+			const dx = Math.abs(x - p.x);
+			const dy = Math.abs(y - p.y);
+			const d = Math.sqrt(dx * dx + dy * dy);
+
+			let spriteRayAngle =
+				p.x - x < 0
+					? 270 - (Math.atan((p.y - y) / -(p.x - x)) * 180) / Math.PI
+					: 90 + (Math.atan((p.y - y) / (p.x - x)) * 180) / Math.PI;
+			spriteRayAngle = (((spriteRayAngle - 90) % 360) + 360) % 360;
+
+			let rayRotDiff = spriteRayAngle - rotation;
+
+			if (Math.abs(rayRotDiff) > this.fov / 2) {
+				rayRotDiff = rayRotDiff >= 0 ? rayRotDiff - 360 : 360 + rayRotDiff;
+			}
+
+			const percAcrScreen = rayRotDiff / this.fov + 0.5;
+
+			if (percAcrScreen >= 0 && percAcrScreen <= 1) {
+				this.playerRays.push({
+					l: d,
+					x: p.x,
+					y: p.y,
+					name: p.name,
+					percAcrossScreen: percAcrScreen,
+				});
+			}
+		}
+
+		if (this.devMode) {
+			for (let i = 0; i < this.playerRays.length; i++) {
+				this.ctx2d.beginPath();
+				this.ctx2d.moveTo(x, y);
+				this.ctx2d.lineTo(this.playerRays[i].x, this.playerRays[i].y);
+				this.ctx2d.strokeStyle = `rgba(255,0,0,1)`;
+				this.ctx2d.lineWidth = 1;
+				this.ctx2d.stroke();
 			}
 		}
 
@@ -387,9 +466,9 @@ export default class Player2d {
 		let recordB = Infinity;
 
 		for (let i = 0; i < this.wallRows; i++) {
-			for (let j = 0; j < this.wallCols; j++) {
+			loop2: for (let j = 0; j < this.wallCols; j++) {
 				const wall = this.walls[i * this.wallCols + j];
-				if (wall === 0) continue;
+				if (wall === 0) continue loop2;
 
 				const fIntersection: {
 					record: number;
@@ -428,7 +507,6 @@ export default class Player2d {
 				}
 			}
 		}
-		this.ctx2d.fillStyle = 'rgb(255, 0, 0)';
 
 		if (closestF) this.moveDirRays.foreward = recordF;
 		else this.moveDirRays.foreward = Infinity;
@@ -441,5 +519,10 @@ export default class Player2d {
 
 		if (closestB) this.moveDirRays.backward = recordB;
 		else this.moveDirRays.backward = Infinity;
+
+		this.ctx2d.fillStyle = `rgba(0,255,0,1)`;
+		this.ctx2d.beginPath();
+		this.ctx2d.ellipse(this.playerX, this.playerY, 6, 6, 0, 0, 2 * Math.PI);
+		this.ctx2d.fill();
 	}
 }
