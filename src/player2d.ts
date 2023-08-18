@@ -37,7 +37,7 @@ export default class Player2d {
 	public playerY: number;
 	public devMode: boolean;
 	public playerRays: IPlayerRays[];
-	public playerL: number;
+	public playerW: number;
 
 	constructor(
 		world2d: HTMLCanvasElement,
@@ -68,11 +68,11 @@ export default class Player2d {
 		this.rayAngles = null;
 		this.rayDensityAdjustment = 12;
 		this.rotDir = null;
-		this.rotAmt = 0.2;
+		this.rotAmt = 2;
 		this.moveDirFB = null;
-		this.moveAmtStart = 0.5;
-		this.moveAmt = 2;
-		this.moveAmtTop = 2;
+		this.moveAmtStart = 2;
+		this.moveAmt = 3;
+		this.moveAmtTop = 3;
 		this.moveDirStrafe = null;
 		this.moveDirRays = {
 			foreward: Infinity,
@@ -84,7 +84,7 @@ export default class Player2d {
 		this.playerY = 100;
 		this.devMode = true;
 		this.playerRays = [];
-		this.playerL = 20;
+		this.playerW = 20;
 	}
 
 	public setUp() {
@@ -92,11 +92,10 @@ export default class Player2d {
 	}
 
 	public setRotation(dir: string | null) {
-		if (this.rotDir === null) {
-			this.rotAmt = 2;
-		}
+		// if (this.rotDir === null) {
+		// 	this.rotAmt = 2;
+		// }
 		this.rotDir = dir;
-		// console.log(this.rotAmt);
 	}
 
 	public setMouseRotation(amt: number) {
@@ -144,10 +143,10 @@ export default class Player2d {
 		const dirRadiansStrafe = dirRadians + Math.PI / 2;
 		const strafeX = (this.moveAmt * Math.cos(90 * (Math.PI / 180) - dirRadiansStrafe)) / 2;
 		const strafeY = (this.moveAmt * Math.cos(dirRadiansStrafe)) / 2;
-		const hittingF = this.moveDirRays.foreward < 5;
-		const hittingL = this.moveDirRays.left < 5;
-		const hittingR = this.moveDirRays.right < 5;
-		const hittingB = this.moveDirRays.backward < 5;
+		const hittingF = this.moveDirRays.foreward < 14;
+		const hittingL = this.moveDirRays.left < 14;
+		const hittingR = this.moveDirRays.right < 14;
+		const hittingB = this.moveDirRays.backward < 14;
 
 		if (this.moveDirFB === 'forwards') {
 			if (!hittingF) {
@@ -333,6 +332,37 @@ export default class Player2d {
 		};
 	}
 
+	private getRayAngle(x1: number, y1: number, x2: number, y2: number) {
+		let rayAng =
+			x2 - x1 < 0
+				? 270 - (Math.atan((y2 - y1) / -(x2 - x1)) * 180) / Math.PI
+				: 90 + (Math.atan((y2 - y1) / (x2 - x1)) * 180) / Math.PI;
+		rayAng = (((rayAng - 90) % 360) + 360) % 360;
+
+		return rayAng;
+	}
+
+	private getPercAcrScreen(
+		x: number,
+		y: number,
+		px: number,
+		py: number,
+		rotation: number,
+		isSprite: boolean
+	) {
+		const rayAng = this.getRayAngle(x, y, px, py);
+
+		let rayRotDiff = rayAng - rotation;
+
+		if (Math.abs(rayRotDiff) > this.fov / 2) {
+			rayRotDiff = rayRotDiff >= 0 ? rayRotDiff - 360 : 360 + rayRotDiff;
+		}
+
+		const percAcrScreen = rayRotDiff / this.fov + 0.5;
+
+		return percAcrScreen;
+	}
+
 	public draw(players: IPlayer[]) {
 		const x = this.playerX;
 		const y = this.playerY;
@@ -412,40 +442,64 @@ export default class Player2d {
 			const dy = Math.abs(y - p.y);
 			const d = Math.sqrt(dx * dx + dy * dy);
 
-			let spriteRayAngle =
-				p.x - x < 0
-					? 270 - (Math.atan((p.y - y) / -(p.x - x)) * 180) / Math.PI
-					: 90 + (Math.atan((p.y - y) / (p.x - x)) * 180) / Math.PI;
-			spriteRayAngle = (((spriteRayAngle - 90) % 360) + 360) % 360;
+			const deltaD = this.playerW / 2;
+			const slope = (p.y - this.playerY) / (p.x - this.playerX);
+			const perpSlope = -(1 / slope);
+			const angle = Math.atan(perpSlope);
+			const x1 = p.x + deltaD * Math.cos(angle);
+			const y1 = p.y + deltaD * Math.sin(angle);
+			const x2 = p.x - deltaD * Math.cos(angle);
+			const y2 = p.y - deltaD * Math.sin(angle);
 
-			let rayRotDiff = spriteRayAngle - rotation;
+			const percAcrScreen: number = this.getPercAcrScreen(x, y, p.x, p.y, rotation, false);
 
-			if (Math.abs(rayRotDiff) > this.fov / 2) {
-				rayRotDiff = rayRotDiff >= 0 ? rayRotDiff - 360 : 360 + rayRotDiff;
+			const angleDeg = this.getRayAngle(x, y, p.x, p.y);
+			let percAcrScreenL: number = -1;
+			let percAcrScreenR: number = -1;
+
+			if (angleDeg >= 0 && angleDeg <= 180) {
+				percAcrScreenL = this.getPercAcrScreen(x, y, x1, y1, rotation, true);
+				percAcrScreenR = this.getPercAcrScreen(x, y, x2, y2, rotation, true);
+			} else {
+				percAcrScreenL = this.getPercAcrScreen(x, y, x2, y2, rotation, true);
+				percAcrScreenR = this.getPercAcrScreen(x, y, x1, y1, rotation, true);
 			}
 
-			const percAcrScreen = rayRotDiff / this.fov + 0.5;
-
-			if (percAcrScreen >= 0 && percAcrScreen <= 1) {
+			if ((percAcrScreenL >= 0 && percAcrScreenL <= 1) || (percAcrScreenR >= 0 && percAcrScreenR <= 1)) {
+				if (percAcrScreenL >= 0 && percAcrScreenL <= 1 && percAcrScreenR >= 0 && percAcrScreenR <= 1) {
+					const percAcrScreenLtemp = percAcrScreenL;
+					percAcrScreenL = Math.min(percAcrScreenL, percAcrScreenR);
+					percAcrScreenR = Math.max(percAcrScreenLtemp, percAcrScreenR);
+				}
 				this.playerRays.push({
 					l: d,
 					x: p.x,
 					y: p.y,
 					name: p.name,
 					percAcrossScreen: percAcrScreen,
+					percAcrossScreen1: percAcrScreenL,
+					percAcrossScreen2: percAcrScreenR,
 				});
-			}
-		}
 
-		if (this.devMode) {
-			for (let i = 0; i < this.playerRays.length; i++) {
-				this.ctx2d.beginPath();
-				this.ctx2d.moveTo(x, y);
-				this.ctx2d.lineTo(this.playerRays[i].x, this.playerRays[i].y);
-				this.ctx2d.strokeStyle = `rgba(255,0,0,1)`;
-				this.ctx2d.lineWidth = 1;
-				this.ctx2d.stroke();
+				if (this.devMode) {
+					this.ctx2d.beginPath();
+					this.ctx2d.moveTo(x, y);
+					this.ctx2d.lineTo(p.x, p.y);
+					this.ctx2d.strokeStyle = `rgba(255,0,0,1)`;
+					this.ctx2d.lineWidth = 1;
+					this.ctx2d.stroke();
+				}
 			}
+
+			// if (percAcrScreen >= 0 && percAcrScreen <= 1) {
+			// 	this.playerRays.push({
+			// 		l: d,
+			// 		x: p.x,
+			// 		y: p.y,
+			// 		name: p.name,
+			// 		percAcrossScreen: percAcrScreen,
+			// 	});
+			// }
 		}
 
 		const rotationF = ((this.rotation % 360) + 360) % 360;

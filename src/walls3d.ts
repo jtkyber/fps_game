@@ -83,7 +83,8 @@ export default class Walls3d {
 		pX: number,
 		pY: number,
 		rayAngles: Float32Array | null,
-		playerRays: IPlayerRays[]
+		playerRays: IPlayerRays[],
+		playerW: number
 	) {
 		if (!rays || !rayAngles) return;
 		this.drawBackground();
@@ -145,8 +146,15 @@ export default class Walls3d {
 
 		for (let i = 0; i < playerRays.length; i++) {
 			const rayL = playerRays[i].l;
-			const x = playerRays[i].percAcrossScreen * this.world3d.width;
-			const playerW = (this.world3d.width * 20) / rayL;
+			const w = (this.world3d.width * playerW) / rayL;
+			// let x = playerRays[i].percAcrossScreen * this.world3d.width;
+			let x;
+
+			if (playerRays[i].percAcrossScreen1 >= 0 && playerRays[i].percAcrossScreen1 <= 1) {
+				x = playerRays[i].percAcrossScreen1 * this.world3d.width + w / 2;
+			} else {
+				x = playerRays[i].percAcrossScreen2 * this.world3d.width - w / 2;
+			}
 
 			let playerCenterHeight = this.world3d.height / 2.5;
 			const wallShiftAmt = (this.world3d.height * 50) / rayL;
@@ -160,7 +168,7 @@ export default class Walls3d {
 
 			this.ctx3d.fillStyle = `rgba(${255 * wallDarkness},${100 * wallDarkness},${0 * wallDarkness},1)`;
 
-			this.ctx3d.fillRect(x - playerW / 2, playerStartTop, playerW, playerEndBottom - playerStartTop);
+			this.ctx3d.fillRect(x - w / 2, playerStartTop, w, playerEndBottom - playerStartTop);
 		}
 	}
 }

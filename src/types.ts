@@ -31,4 +31,6 @@ export interface IPlayerRays {
 	y: number;
 	name: string;
 	percAcrossScreen: number;
+	percAcrossScreen1: number;
+	percAcrossScreen2: number;
 }

@@ -22,7 +22,7 @@ let players: Players;
 
 let fpsInterval: number, now: number, then: number, elapsed: number, requestID: number;
 let frameCount: number = 0;
-const frameRate = 75;
+const frameRate = 60;
 
 let devMode = true;
 
@@ -65,14 +65,13 @@ const gameLoop = () => {
 			player2d.playerX,
 			player2d.playerY,
 			player2d.rayAngles,
-			player2d.playerRays
+			player2d.playerRays,
+			player2d.playerW
 		);
 
 		one: if (player2d.playerX !== lastRecordedPlayerPos.x || player2d.playerY !== lastRecordedPlayerPos.y) {
 			lastRecordedPlayerPos.x = player2d.playerX;
 			lastRecordedPlayerPos.y = player2d.playerY;
-
-			players.setUserCoords(lastRecordedPlayerPos.x, lastRecordedPlayerPos.y);
 
 			if (!userId) break one;
 
@@ -154,6 +153,7 @@ document.addEventListener('keyup', e => {
 			world2d.classList.add('fullscreen');
 			world3d.classList.add('fullscreen');
 			player2d.devMode = false;
+			walls2d.devMode = false;
 			world3d.requestPointerLock =
 				//@ts-ignore
 				world3d.requestPointerLock || world3d.mozRequestPointerLock || world3d.webkitRequestPointerLock;
@@ -165,6 +165,7 @@ document.addEventListener('keyup', e => {
 			world2d.classList.remove('fullscreen');
 			world3d.classList.remove('fullscreen');
 			player2d.devMode = true;
+			walls2d.devMode = true;
 			document.exitPointerLock =
 				//@ts-ignore
 				document.exitPointerLock || document.mozExitPointerLock || document.webkitExitPointerLock;
