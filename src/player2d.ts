@@ -9,6 +9,7 @@ export default class Player2d {
 	private wallW: number;
 	private wallH: number;
 	public rays: Float32Array | null;
+	public rayCoords: Float32Array | null;
 	public objectTypes: Uint8Array | null;
 	public objectDirs: Uint8Array | null;
 	private rayIncrement: number;
@@ -56,13 +57,14 @@ export default class Player2d {
 		this.wallW = wallW;
 		this.wallH = wallH;
 		this.rays = null;
+		this.rayCoords = null;
 		this.objectTypes = null;
 		this.objectDirs = null;
 		this.rayIncrement = 2;
 		this.rayOpacity = 0.26;
 		this.fov = 60;
 		this.fovRad = this.fov * (Math.PI / 180);
-		this.rotation = 45;
+		this.rotation = 90;
 		this.angle = this.rotation + 90;
 		this.distToProjectionPlane = world2d.width / 2 / Math.tan(this.fovRad / 2);
 		this.rayAngles = null;
@@ -80,8 +82,8 @@ export default class Player2d {
 			right: Infinity,
 			backward: Infinity,
 		};
-		this.playerX = 100;
-		this.playerY = 100;
+		this.playerX = 800;
+		this.playerY = 500;
 		this.devMode = true;
 		this.playerRays = [];
 		this.playerW = 20;
@@ -190,6 +192,7 @@ export default class Player2d {
 		}
 
 		this.rays = new Float32Array(this.rayAngles.length);
+		this.rayCoords = new Float32Array(this.rayAngles.length * 2);
 		this.objectTypes = new Uint8Array(this.rayAngles.length);
 		this.objectDirs = new Uint8Array(this.rayAngles.length);
 	}
@@ -372,7 +375,6 @@ export default class Player2d {
 		this.move();
 
 		if (!this.rayAngles || !this.rays) return;
-		const r = 1;
 		const rotation = ((this.rotation % 360) + 360) % 360;
 
 		let objTypeTemp = 0;
@@ -414,6 +416,10 @@ export default class Player2d {
 				}
 
 				this.rays[i] = record;
+				if (this.rayCoords) {
+					this.rayCoords[i * 2] = closest[0];
+					this.rayCoords[i * 2 + 1] = closest[1];
+				}
 				if (this.objectTypes) this.objectTypes[i] = objTypeTemp;
 				if (this.objectDirs) this.objectDirs[i] = objDirTemp;
 			} else {

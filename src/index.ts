@@ -60,6 +60,7 @@ const gameLoop = () => {
 		walls3d.setbgTopX(player2d.rotAmt, player2d.rotDir);
 		walls3d.draw(
 			player2d.rays,
+			player2d.rayCoords,
 			player2d.objectTypes,
 			player2d.objectDirs,
 			player2d.playerX,

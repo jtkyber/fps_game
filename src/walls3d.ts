@@ -7,6 +7,7 @@ export default class Walls3d {
 	private wallH: number;
 	private world3dDiag: number;
 	private wallTexture: HTMLImageElement;
+	private wallTextureDark: HTMLImageElement;
 	private bgTopImg: HTMLImageElement;
 	private bgTopX: number;
 	private wallCenterHeight: number;
@@ -19,6 +20,8 @@ export default class Walls3d {
 		this.world3dDiag = Math.sqrt(Math.pow(world3d.width, 2) + Math.pow(world3d.height, 2));
 		this.wallTexture = new Image();
 		this.wallTexture.src = '../public/stoneTexture.png';
+		this.wallTextureDark = new Image();
+		this.wallTextureDark.src = '../public/stoneTextureDark.png';
 		this.bgTopImg = new Image();
 		this.bgTopImg.src = '../public/stars.jpg';
 		this.bgTopX = 0;
@@ -78,6 +81,7 @@ export default class Walls3d {
 
 	public draw(
 		rays: Float32Array | null,
+		rayCoords: Float32Array | null,
 		objectTypes: Uint8Array | null,
 		objectDirs: Uint8Array | null,
 		pX: number,
@@ -86,7 +90,7 @@ export default class Walls3d {
 		playerRays: IPlayerRays[],
 		playerW: number
 	) {
-		if (!rays || !rayAngles) return;
+		if (!rays || !rayAngles || !rayCoords) return;
 		this.drawBackground();
 
 		const wallWidth = this.world3d.width / rays.length;
@@ -95,51 +99,84 @@ export default class Walls3d {
 
 		for (let i = 0; i < rays.length; i++) {
 			const dist = rays[i] * Math.cos(rayAngles[i]);
-			const offset = objectDirs?.[i] === 0 || objectDirs?.[i] === 2 ? pX / this.wallW : pY / this.wallH;
+			const offset =
+				objectDirs?.[i] === 0 || objectDirs?.[i] === 2
+					? rayCoords[i * 2] % this.wallW
+					: rayCoords[i * 2 + 1] % this.wallH;
+
+			const offset2 =
+				objectDirs?.[i + 1] === 0 || objectDirs?.[i + 1] === 2
+					? rayCoords[(i + 1) * 2] % this.wallW
+					: rayCoords[(i + 1) * 2 + 1] % this.wallH;
 
 			const wallShiftAmt = (this.world3d.height * 50) / dist;
 			const wallStartTop = this.wallCenterHeight - wallShiftAmt;
 			const wallEndBottom = this.wallCenterHeight + wallShiftAmt;
 
-			let wallDarkness = dist / this.world3d.height;
-			wallDarkness = (this.world3dDiag - dist) / this.world3dDiag;
+			// let wallDarkness = dist / this.world3d.height;
+			// wallDarkness = (this.world3dDiag - dist) / this.world3dDiag;
 
-			switch (objectDirs?.[i]) {
-				case 0:
-					wallDarkness -= 0.2;
-					break;
-				case 2:
-					wallDarkness -= 0.2;
-					break;
+			// switch (objectDirs?.[i]) {
+			// 	case 0:
+			// 		wallDarkness -= 0.2;
+			// 		break;
+			// 	case 2:
+			// 		wallDarkness -= 0.2;
+			// 		break;
+			// }
+
+			// switch (objectTypes?.[i]) {
+			// 	case 1:
+			// 		this.ctx3d.fillStyle = `rgba(${255 * wallDarkness},${255 * wallDarkness},${255 * wallDarkness},1)`;
+			// 		break;
+			// 	case 2:
+			// 		this.ctx3d.fillStyle = `rgba(${0 * wallDarkness},${100 * wallDarkness},${100 * wallDarkness},1)`;
+			// 		break;
+			// }
+
+			// this.ctx3d.fillRect(wallX, wallStartTop, wallWidthOversized, wallEndBottom - wallStartTop);
+
+			// const sWidth =
+			// 	objectDirs?.[i] === 0 || objectDirs?.[i] === 2
+			// 		? this.wallTexture.width / offset
+			// 		: this.wallTexture.height / offset;
+			// console.log(offset);
+
+			let sWidth = 0;
+
+			if (objectDirs?.[i] === 2 || objectDirs?.[i] === 3) {
+				sWidth = offset2 >= 0 ? (offset <= offset2 ? offset2 - offset : this.wallW - offset + offset2) : 8;
+			} else {
+				// Not working right, don't know why
+				sWidth = offset2 >= 0 ? (offset2 <= offset ? offset - offset2 : this.wallW - offset2 + offset) : 8;
+				// console.log(offset, offset2, sWidth);
 			}
 
-			switch (objectTypes?.[i]) {
-				case 1:
-					this.ctx3d.fillStyle = `rgba(${255 * wallDarkness},${255 * wallDarkness},${255 * wallDarkness},1)`;
-					break;
-				case 2:
-					this.ctx3d.fillStyle = `rgba(${0 * wallDarkness},${100 * wallDarkness},${100 * wallDarkness},1)`;
-					break;
+			if (objectDirs?.[i] === 0 || objectDirs?.[i] === 2) {
+				this.ctx3d.drawImage(
+					this.wallTexture,
+					offset,
+					0,
+					sWidth,
+					this.wallTexture.height,
+					wallX,
+					wallStartTop,
+					wallWidth,
+					wallEndBottom - wallStartTop
+				);
+			} else {
+				this.ctx3d.drawImage(
+					this.wallTextureDark,
+					offset,
+					0,
+					sWidth,
+					this.wallTextureDark.height,
+					wallX,
+					wallStartTop,
+					wallWidth,
+					wallEndBottom - wallStartTop
+				);
 			}
-
-			this.ctx3d.fillRect(wallX, wallStartTop, wallWidthOversized, wallEndBottom - wallStartTop);
-
-			// // const sWidth =
-			// // 	objectDirs?.[i] === 0 || objectDirs?.[i] === 2
-			// // 		? this.wallTexture.width / offset
-			// // 		: this.wallTexture.height / offset;
-
-			// this.ctx3d.drawImage(
-			// 	this.wallTexture,
-			// 	offset,
-			// 	0,
-			// 	this.wallTexture.width,
-			// 	this.wallTexture.height,
-			// 	wallX,
-			// 	wallStartTop,
-			// 	wallWidth,
-			// 	wallEndBottom - wallStartTop
-			// );
 
 			wallX += wallWidth;
 		}
