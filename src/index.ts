@@ -22,7 +22,7 @@ let players: Players;
 
 let fpsInterval: number, now: number, then: number, elapsed: number, requestID: number;
 let frameCount: number = 0;
-const frameRate = 60;
+const frameRate = 20;
 
 let devMode = true;
 
@@ -37,6 +37,14 @@ const setFramerateValue = () => {
 	fpsElement.style.color = frameCount < frameRate ? 'red' : 'rgb(0, 255, 0)';
 	frameCount = 0;
 };
+
+// let arrTest: number[] = [];
+// const arrTest2 = new Float32Array(5000);
+
+// for (let i = 0; i < arrTest2.length; i++) {
+// 	arrTest.push(i);
+// 	arrTest2[i] = i;
+// }
 
 const gameLoop = () => {
 	requestID = requestAnimationFrame(gameLoop);
@@ -53,6 +61,17 @@ const gameLoop = () => {
 
 		ctx2d.clearRect(0, 0, world2d.width, world2d.height);
 		ctx3d.clearRect(0, 0, world3d.width, world3d.height);
+
+		// for (let i = 0; i < arrTest2.length; i++) {
+		// 	// arrTest[i] = Math.random();
+		// 	arrTest2[i] = Math.random();
+
+		// 	ctx2d.clearRect(0, 0, world2d.width, world2d.height);
+		// 	ctx2d.beginPath();
+		// 	ctx2d.font = '48px arial';
+		// 	ctx2d.fillStyle = 'green';
+		// 	ctx2d.fillText(arrTest2[i].toString(), 100, 100);
+		// }
 
 		walls2d.draw();
 		players.draw();
@@ -105,7 +124,8 @@ const setUp = () => {
 		walls2d.wallCols,
 		walls2d.wallRows,
 		walls2d.wallW,
-		walls2d.wallH
+		walls2d.wallH,
+		frameRate
 	);
 	player2d.setUp();
 	players = new Players(world2d, ctx2d);

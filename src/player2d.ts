@@ -8,6 +8,8 @@ export default class Player2d {
 	private wallRows: number;
 	private wallW: number;
 	private wallH: number;
+	private frameRate: number;
+	private speedMultiplier: number;
 	public rays: Float32Array | null;
 	public rayCoords: Float32Array | null;
 	public objectTypes: Uint8Array | null;
@@ -47,7 +49,8 @@ export default class Player2d {
 		wallCols: number,
 		wallRows: number,
 		wallW: number,
-		wallH: number
+		wallH: number,
+		frameRate: number
 	) {
 		this.world2d = world2d;
 		this.ctx2d = ctx2d;
@@ -56,6 +59,8 @@ export default class Player2d {
 		this.wallRows = wallRows;
 		this.wallW = wallW;
 		this.wallH = wallH;
+		this.frameRate = frameRate;
+		this.speedMultiplier = frameRate / 60;
 		this.rays = null;
 		this.rayCoords = null;
 		this.objectTypes = null;
@@ -64,17 +69,17 @@ export default class Player2d {
 		this.rayOpacity = 0.26;
 		this.fov = 60;
 		this.fovRad = this.fov * (Math.PI / 180);
-		this.rotation = 90;
+		this.rotation = 230;
 		this.angle = this.rotation + 90;
 		this.distToProjectionPlane = world2d.width / 2 / Math.tan(this.fovRad / 2);
 		this.rayAngles = null;
-		this.rayDensityAdjustment = 12;
+		this.rayDensityAdjustment = 150;
 		this.rotDir = null;
-		this.rotAmt = 2;
+		this.rotAmt = 2 / this.speedMultiplier;
 		this.moveDirFB = null;
-		this.moveAmtStart = 2;
-		this.moveAmt = 3;
-		this.moveAmtTop = 3;
+		this.moveAmtStart = 3 / this.speedMultiplier;
+		this.moveAmt = 3 / this.speedMultiplier;
+		this.moveAmtTop = 3 / this.speedMultiplier;
 		this.moveDirStrafe = null;
 		this.moveDirRays = {
 			foreward: Infinity,
@@ -82,8 +87,8 @@ export default class Player2d {
 			right: Infinity,
 			backward: Infinity,
 		};
-		this.playerX = 800;
-		this.playerY = 500;
+		this.playerX = 840;
+		this.playerY = 150;
 		this.devMode = true;
 		this.playerRays = [];
 		this.playerW = 20;
@@ -281,7 +286,6 @@ export default class Player2d {
 							dir = 0;
 						}
 					}
-
 					break;
 				case 1:
 					const intersectionRight = this.getIntersection(x, y, r, rayAngle, x2, y2, x3, y3, rotation, p4);
@@ -526,9 +530,9 @@ export default class Player2d {
 		let recordB = Infinity;
 
 		for (let i = 0; i < this.wallRows; i++) {
-			loop2: for (let j = 0; j < this.wallCols; j++) {
+			for (let j = 0; j < this.wallCols; j++) {
 				const wall = this.walls[i * this.wallCols + j];
-				if (wall === 0) continue loop2;
+				if (wall === 0) continue;
 
 				const fIntersection: {
 					record: number;
