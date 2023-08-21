@@ -22,7 +22,7 @@ let players: Players;
 
 let fpsInterval: number, now: number, then: number, elapsed: number, requestID: number;
 let frameCount: number = 0;
-const frameRate = 20;
+const frameRate = 60;
 
 let devMode = true;
 

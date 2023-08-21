@@ -41,6 +41,7 @@ export default class Player2d {
 	public devMode: boolean;
 	public playerRays: IPlayerRays[];
 	public playerW: number;
+	private renderDist: number;
 
 	constructor(
 		world2d: HTMLCanvasElement,
@@ -69,11 +70,11 @@ export default class Player2d {
 		this.rayOpacity = 0.26;
 		this.fov = 60;
 		this.fovRad = this.fov * (Math.PI / 180);
-		this.rotation = 230;
+		this.rotation = 300;
 		this.angle = this.rotation + 90;
 		this.distToProjectionPlane = world2d.width / 2 / Math.tan(this.fovRad / 2);
 		this.rayAngles = null;
-		this.rayDensityAdjustment = 150;
+		this.rayDensityAdjustment = 10;
 		this.rotDir = null;
 		this.rotAmt = 2 / this.speedMultiplier;
 		this.moveDirFB = null;
@@ -87,11 +88,12 @@ export default class Player2d {
 			right: Infinity,
 			backward: Infinity,
 		};
-		this.playerX = 840;
-		this.playerY = 150;
+		this.playerX = 700;
+		this.playerY = 700;
 		this.devMode = true;
 		this.playerRays = [];
 		this.playerW = 20;
+		this.renderDist = 800;
 	}
 
 	public setUp() {
@@ -211,10 +213,8 @@ export default class Player2d {
 		y1: number,
 		x2: number,
 		y2: number,
-		rot: number,
 		p4?: { x: number; y: number }
 	) => {
-		const adjustedAngle = theta + rot * (Math.PI / 180);
 		const x3 = x;
 		const y3 = y;
 		let x4;
@@ -225,8 +225,8 @@ export default class Player2d {
 			y4 = p4.y;
 			uMax = 1;
 		} else {
-			x4 = x + r * Math.cos(adjustedAngle);
-			y4 = y + r * Math.sin(adjustedAngle);
+			x4 = x + r * Math.cos(theta);
+			y4 = y + r * Math.sin(theta);
 		}
 
 		const denom = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4);
@@ -250,11 +250,40 @@ export default class Player2d {
 		k: number,
 		x: number,
 		y: number,
-		rayAngle: number,
-		rotation: number,
+		adjustedAngle: number,
 		p4?: { x: number; y: number }
 	) {
+		if (!this.rayAngles) {
+			return {
+				record: Infinity,
+				closest: null,
+				dir: 0,
+			};
+		}
 		const r = 1;
+
+		// Test to see if the ray will intersect with the block at all before checking all 4 sides
+		// const xMid = k * this.wallW + this.wallW / 2;
+		// const yMid = j * this.wallH + this.wallH / 2;
+		// const deltaD = this.wallW * Math.sqrt(2);
+		// const slope = (yMid - y) / (xMid - x);
+		// const perpSlope = -(1 / slope);
+		// const angle = Math.atan(perpSlope);
+
+		// const xMid1 = xMid + deltaD * Math.cos(angle);
+		// const yMid1 = yMid + deltaD * Math.sin(angle);
+		// const xMid2 = xMid - deltaD * Math.cos(angle);
+		// const yMid2 = yMid - deltaD * Math.sin(angle);
+
+		// const intersection = this.getIntersection(x, y, r, adjustedAngle, xMid1, yMid1, xMid2, yMid2);
+		// if (!intersection) {
+		// 	return {
+		// 		record: Infinity,
+		// 		closest: null,
+		// 		dir: 0,
+		// 	};
+		// }
+
 		const x1 = k * this.wallW;
 		const y1 = j * this.wallH;
 
@@ -271,64 +300,50 @@ export default class Player2d {
 		let closest = null;
 		let dir = 0;
 
+		let wX1 = 0;
+		let wY1 = 0;
+		let wX2 = 0;
+		let wY2 = 0;
+
 		for (let n = 0; n < 4; n++) {
 			switch (n) {
 				case 0:
-					const intersectionTop = this.getIntersection(x, y, r, rayAngle, x1, y1, x2, y2, rotation, p4);
-					if (intersectionTop) {
-						const dx = Math.abs(x - intersectionTop[0]);
-						const dy = Math.abs(y - intersectionTop[1]);
-						const d = Math.sqrt(dx * dx + dy * dy);
-						record = Math.min(d, record);
-						if (d <= record) {
-							record = d;
-							closest = intersectionTop;
-							dir = 0;
-						}
-					}
+					wX1 = x1;
+					wY1 = y1;
+					wX2 = x2;
+					wY2 = y2;
 					break;
 				case 1:
-					const intersectionRight = this.getIntersection(x, y, r, rayAngle, x2, y2, x3, y3, rotation, p4);
-					if (intersectionRight) {
-						const dx = Math.abs(x - intersectionRight[0]);
-						const dy = Math.abs(y - intersectionRight[1]);
-						const d = Math.sqrt(dx * dx + dy * dy);
-						record = Math.min(d, record);
-						if (d <= record) {
-							record = d;
-							closest = intersectionRight;
-							dir = 1;
-						}
-					}
+					wX1 = x2;
+					wY1 = y2;
+					wX2 = x3;
+					wY2 = y3;
 					break;
 				case 2:
-					const intersectionBot = this.getIntersection(x, y, r, rayAngle, x3, y3, x4, y4, rotation, p4);
-					if (intersectionBot) {
-						const dx = Math.abs(x - intersectionBot[0]);
-						const dy = Math.abs(y - intersectionBot[1]);
-						const d = Math.sqrt(dx * dx + dy * dy);
-						record = Math.min(d, record);
-						if (d <= record) {
-							record = d;
-							closest = intersectionBot;
-							dir = 2;
-						}
-					}
+					wX1 = x3;
+					wY1 = y3;
+					wX2 = x4;
+					wY2 = y4;
 					break;
 				case 3:
-					const intersectionLeft = this.getIntersection(x, y, r, rayAngle, x4, y4, x1, y1, rotation, p4);
-					if (intersectionLeft) {
-						const dx = Math.abs(x - intersectionLeft[0]);
-						const dy = Math.abs(y - intersectionLeft[1]);
-						const d = Math.sqrt(dx * dx + dy * dy);
-						record = Math.min(d, record);
-						if (d <= record) {
-							record = d;
-							closest = intersectionLeft;
-							dir = 3;
-						}
-					}
+					wX1 = x4;
+					wY1 = y4;
+					wX2 = x1;
+					wY2 = y1;
 					break;
+			}
+
+			const intersection = this.getIntersection(x, y, r, adjustedAngle, wX1, wY1, wX2, wY2, p4);
+			if (intersection?.[0]) {
+				const dx = Math.abs(x - intersection[0]);
+				const dy = Math.abs(y - intersection[1]);
+				const d = Math.sqrt(dx * dx + dy * dy);
+				record = Math.min(d, record);
+				if (d <= record) {
+					record = d;
+					closest = intersection;
+					dir = n;
+				}
 			}
 		}
 
@@ -387,6 +402,7 @@ export default class Player2d {
 		for (let i = 0; i < this.rayAngles.length; i++) {
 			let closest = null;
 			let record = Infinity;
+			const adjustedAngle = this.rayAngles[i] + rotation * (Math.PI / 180);
 
 			for (let j = 0; j < this.wallRows; j++) {
 				for (let k = 0; k < this.wallCols; k++) {
@@ -397,7 +413,7 @@ export default class Player2d {
 						record: number;
 						closest: number[] | null;
 						dir: number;
-					} = this.getIntersectionsForRect(j, k, x, y, this.rayAngles[i], rotation);
+					} = this.getIntersectionsForRect(j, k, x, y, adjustedAngle);
 
 					if (rectIntersection.record < record) {
 						record = rectIntersection.record;
@@ -442,7 +458,7 @@ export default class Player2d {
 						record: number;
 						closest: number[] | null;
 						dir: number;
-					} = this.getIntersectionsForRect(j, k, x, y, 0, rotation, { x: p.x, y: p.y });
+					} = this.getIntersectionsForRect(j, k, x, y, 0, { x: p.x, y: p.y });
 
 					if (rectIntersection?.closest?.[0]) continue loop1;
 				}
@@ -500,22 +516,12 @@ export default class Player2d {
 					this.ctx2d.stroke();
 				}
 			}
-
-			// if (percAcrScreen >= 0 && percAcrScreen <= 1) {
-			// 	this.playerRays.push({
-			// 		l: d,
-			// 		x: p.x,
-			// 		y: p.y,
-			// 		name: p.name,
-			// 		percAcrossScreen: percAcrScreen,
-			// 	});
-			// }
 		}
 
-		const rotationF = ((this.rotation % 360) + 360) % 360;
-		const rotationR = (((this.rotation + 90) % 360) + 360) % 360;
-		const rotationB = (((this.rotation + 180) % 360) + 360) % 360;
-		const rotationL = (((this.rotation - 90) % 360) + 360) % 360;
+		const rotationF = ((Math.PI / 180) * ((this.rotation % 360) + 360)) % 360;
+		const rotationR = ((Math.PI / 180) * (((this.rotation + 90) % 360) + 360)) % 360;
+		const rotationB = ((Math.PI / 180) * (((this.rotation + 180) % 360) + 360)) % 360;
+		const rotationL = ((Math.PI / 180) * (((this.rotation - 90) % 360) + 360)) % 360;
 
 		let closestF = null;
 		let recordF = Infinity;
@@ -537,7 +543,7 @@ export default class Player2d {
 				const fIntersection: {
 					record: number;
 					closest: number[] | null;
-				} = this.getIntersectionsForRect(i, j, x, y, 0, rotationF);
+				} = this.getIntersectionsForRect(i, j, x, y, rotationF);
 				if (fIntersection.record < recordF) {
 					recordF = fIntersection.record;
 					closestF = fIntersection.closest;
@@ -546,7 +552,7 @@ export default class Player2d {
 				const lIntersection: {
 					record: number;
 					closest: number[] | null;
-				} = this.getIntersectionsForRect(i, j, x, y, 0, rotationL);
+				} = this.getIntersectionsForRect(i, j, x, y, rotationL);
 				if (lIntersection.record < recordL) {
 					recordL = lIntersection.record;
 					closestL = lIntersection.closest;
@@ -555,7 +561,7 @@ export default class Player2d {
 				const rIntersection: {
 					record: number;
 					closest: number[] | null;
-				} = this.getIntersectionsForRect(i, j, x, y, 0, rotationR);
+				} = this.getIntersectionsForRect(i, j, x, y, rotationR);
 				if (rIntersection.record < recordR) {
 					recordR = rIntersection.record;
 					closestR = rIntersection.closest;
@@ -564,7 +570,7 @@ export default class Player2d {
 				const bIntersection: {
 					record: number;
 					closest: number[] | null;
-				} = this.getIntersectionsForRect(i, j, x, y, 0, rotationB);
+				} = this.getIntersectionsForRect(i, j, x, y, rotationB);
 				if (bIntersection.record < recordB) {
 					recordB = bIntersection.record;
 					closestB = bIntersection.closest;
