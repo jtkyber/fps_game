@@ -19,9 +19,9 @@ export default class Walls3d {
 		this.wallH = wallH;
 		this.world3dDiag = Math.sqrt(Math.pow(world3d.width, 2) + Math.pow(world3d.height, 2));
 		this.wallTexture = new Image();
-		this.wallTexture.src = '../public/test.png';
+		this.wallTexture.src = '../public/stoneTexture.png';
 		this.wallTextureDark = new Image();
-		this.wallTextureDark.src = '../public/testDark.png';
+		this.wallTextureDark.src = '../public/stoneTextureDark.png';
 		this.bgTopImg = new Image();
 		this.bgTopImg.src = '../public/stars.jpg';
 		this.bgTopX = 0;
@@ -85,8 +85,13 @@ export default class Walls3d {
 		rayCoords: Float32Array | null,
 		objectTypes: Uint8Array | null,
 		objectDirs: Uint8Array | null,
-		pX: number,
-		pY: number,
+		extraRay: {
+			ang: number;
+			l: number;
+			coords: number[];
+			objType: number;
+			objDir: number;
+		},
 		rayAngles: Float32Array | null,
 		playerRays: IPlayerRays[],
 		playerW: number
@@ -105,12 +110,24 @@ export default class Walls3d {
 					? rayCoords[i * 2] % this.wallW
 					: rayCoords[i * 2 + 1] % this.wallH;
 
-			let offset2 =
-				i < rays.length - 1
-					? objectDirs?.[i + 1] === 0 || objectDirs?.[i + 1] === 2
+			let offset2: number;
+
+			if (i === rays.length - 1) {
+				offset2 =
+					extraRay.objDir === 0 || extraRay.objDir === 2
+						? extraRay.coords[0] % this.wallW
+						: extraRay.coords[1] % this.wallH;
+			} else {
+				offset2 =
+					objectDirs?.[i + 1] === 0 || objectDirs?.[i + 1] === 2
 						? rayCoords[(i + 1) * 2] % this.wallW
-						: rayCoords[(i + 1) * 2 + 1] % this.wallH
-					: null;
+						: rayCoords[(i + 1) * 2 + 1] % this.wallH;
+			}
+
+			if (objectDirs?.[i] === 0 || objectDirs?.[i] === 1) {
+				offset = this.wallW - offset;
+				offset2 = this.wallW - offset2;
+			}
 
 			const wallShiftAmt = (this.world3d.height * 50) / dist;
 			const wallStartTop = this.wallCenterHeight - wallShiftAmt;
@@ -143,44 +160,10 @@ export default class Walls3d {
 			let sWidth = 0;
 			let chunk2Offset: number | null = null;
 
-			label1: if (objectDirs?.[i] === 2 || objectDirs?.[i] === 3) {
-				if (offset2 === null) {
-					sWidth = 8;
-					break label1;
-				}
-				sWidth = offset <= offset2 ? offset2 - offset : this.wallW - offset + offset2;
-				if (offset > offset2) {
-					chunk2Offset = -(this.wallW - offset);
-				}
-			} else {
-				if (offset2 === null) {
-					sWidth = 8;
-					break label1;
-				}
-				sWidth = offset2 <= offset ? offset2 - offset : -offset - (this.wallW - offset2);
-
-				if (offset2 > offset) {
-					chunk2Offset = this.wallW + offset;
-				}
-				// console.log(i, offset, offset2, chunk2Offset, sWidth);
+			sWidth = offset <= offset2 ? offset2 - offset : this.wallW - offset + offset2;
+			if (offset > offset2) {
+				chunk2Offset = -(this.wallW - offset);
 			}
-
-			// if (offset2 === null) {
-			// 	sWidth = 8;
-			// } else {
-			// 	if (objectDirs?.[i] === 0 || objectDirs?.[i] === 1) {
-			// 		const offsetTemp = offset;
-			// 		offset = offset2;
-			// 		offset2 = offsetTemp;
-			// 	}
-
-			// 	sWidth = offset <= offset2 ? offset2 - offset : this.wallW - offset + offset2;
-			// 	// if (objectDirs?.[i] === 0 || objectDirs?.[i] === 1) sWidth *= -1;
-			// 	if (offset > offset2) {
-			// 		chunk2Offset = -(this.wallW - offset);
-			// 	}
-			// 	// console.log(i, offset, offset2, chunk2Offset, sWidth);
-			// }
 
 			if (objectDirs?.[i] === 0 || objectDirs?.[i] === 2) {
 				curImg = this.wallTexture;

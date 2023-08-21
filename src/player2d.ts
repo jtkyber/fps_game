@@ -14,6 +14,13 @@ export default class Player2d {
 	public rayCoords: Float32Array | null;
 	public objectTypes: Uint8Array | null;
 	public objectDirs: Uint8Array | null;
+	public extraRay: {
+		ang: number;
+		l: number;
+		coords: number[];
+		objType: number;
+		objDir: number;
+	};
 	private rayIncrement: number;
 	private rayOpacity: number;
 	private fov: number;
@@ -66,15 +73,22 @@ export default class Player2d {
 		this.rayCoords = null;
 		this.objectTypes = null;
 		this.objectDirs = null;
+		this.extraRay = {
+			ang: 0,
+			l: 0,
+			coords: [],
+			objType: 0,
+			objDir: 0,
+		};
 		this.rayIncrement = 2;
 		this.rayOpacity = 0.26;
 		this.fov = 60;
 		this.fovRad = this.fov * (Math.PI / 180);
-		this.rotation = 300;
+		this.rotation = 332;
 		this.angle = this.rotation + 90;
 		this.distToProjectionPlane = world2d.width / 2 / Math.tan(this.fovRad / 2);
 		this.rayAngles = null;
-		this.rayDensityAdjustment = 10;
+		this.rayDensityAdjustment = 8;
 		this.rotDir = null;
 		this.rotAmt = 2 / this.speedMultiplier;
 		this.moveDirFB = null;
@@ -88,8 +102,8 @@ export default class Player2d {
 			right: Infinity,
 			backward: Infinity,
 		};
-		this.playerX = 700;
-		this.playerY = 700;
+		this.playerX = 650;
+		this.playerY = 120;
 		this.devMode = true;
 		this.playerRays = [];
 		this.playerW = 20;
@@ -152,10 +166,10 @@ export default class Player2d {
 		const dirRadiansStrafe = dirRadians + Math.PI / 2;
 		const strafeX = (this.moveAmt * Math.cos(90 * (Math.PI / 180) - dirRadiansStrafe)) / 2;
 		const strafeY = (this.moveAmt * Math.cos(dirRadiansStrafe)) / 2;
-		const hittingF = this.moveDirRays.foreward < 14;
-		const hittingL = this.moveDirRays.left < 14;
-		const hittingR = this.moveDirRays.right < 14;
-		const hittingB = this.moveDirRays.backward < 14;
+		const hittingF = this.moveDirRays.foreward < 30;
+		const hittingL = this.moveDirRays.left < 30;
+		const hittingR = this.moveDirRays.right < 30;
+		const hittingB = this.moveDirRays.backward < 30;
 
 		if (this.moveDirFB === 'forwards') {
 			if (!hittingF) {
@@ -197,6 +211,8 @@ export default class Player2d {
 			this.rayAngles[i] = Math.atan((x - this.world2d.width / 2) / this.distToProjectionPlane);
 			x += this.rayDensityAdjustment;
 		}
+
+		this.extraRay.ang = Math.atan((x - this.world2d.width / 2) / this.distToProjectionPlane);
 
 		this.rays = new Float32Array(this.rayAngles.length);
 		this.rayCoords = new Float32Array(this.rayAngles.length * 2);
@@ -399,10 +415,16 @@ export default class Player2d {
 		let objTypeTemp = 0;
 		let objDirTemp = 0;
 
-		for (let i = 0; i < this.rayAngles.length; i++) {
+		for (let i = 0; i < this.rayAngles.length + 1; i++) {
+			let adjustedAngle;
+			if (i === this.rayAngles.length) {
+				adjustedAngle = this.extraRay.ang + rotation * (Math.PI / 180);
+			} else {
+				adjustedAngle = this.rayAngles[i] + rotation * (Math.PI / 180);
+			}
+
 			let closest = null;
 			let record = Infinity;
-			const adjustedAngle = this.rayAngles[i] + rotation * (Math.PI / 180);
 
 			for (let j = 0; j < this.wallRows; j++) {
 				for (let k = 0; k < this.wallCols; k++) {
@@ -424,26 +446,49 @@ export default class Player2d {
 					}
 				}
 			}
+			if (i === this.rayAngles.length) {
+				// If on extra ray angle
+				if (closest) {
+					if (this.devMode) {
+						this.ctx2d.beginPath();
+						this.ctx2d.moveTo(x, y);
+						this.ctx2d.lineTo(closest[0], closest[1]);
+						this.ctx2d.strokeStyle = `rgba(0,255,0,${this.rayOpacity + 0.1})`;
+						this.ctx2d.lineWidth = 1;
+						this.ctx2d.stroke();
+					}
 
-			if (closest) {
-				if (this.devMode) {
-					this.ctx2d.beginPath();
-					this.ctx2d.moveTo(x, y);
-					this.ctx2d.lineTo(closest[0], closest[1]);
-					this.ctx2d.strokeStyle = `rgba(255,255,255,${this.rayOpacity})`;
-					this.ctx2d.lineWidth = 1;
-					this.ctx2d.stroke();
+					this.extraRay.l = record;
+					if (this.rayCoords) {
+						this.extraRay.coords[0] = closest[0];
+						this.extraRay.coords[1] = closest[1];
+					}
+					if (this.objectTypes) this.extraRay.objType = objTypeTemp;
+					if (this.objectDirs) this.extraRay.objDir = objDirTemp;
+				} else {
+					this.extraRay.l = Infinity;
 				}
-
-				this.rays[i] = record;
-				if (this.rayCoords) {
-					this.rayCoords[i * 2] = closest[0];
-					this.rayCoords[i * 2 + 1] = closest[1];
-				}
-				if (this.objectTypes) this.objectTypes[i] = objTypeTemp;
-				if (this.objectDirs) this.objectDirs[i] = objDirTemp;
 			} else {
-				this.rays[i] = Infinity;
+				if (closest) {
+					if (this.devMode) {
+						this.ctx2d.beginPath();
+						this.ctx2d.moveTo(x, y);
+						this.ctx2d.lineTo(closest[0], closest[1]);
+						this.ctx2d.strokeStyle = `rgba(255,255,255,${this.rayOpacity})`;
+						this.ctx2d.lineWidth = 1;
+						this.ctx2d.stroke();
+					}
+
+					this.rays[i] = record;
+					if (this.rayCoords) {
+						this.rayCoords[i * 2] = closest[0];
+						this.rayCoords[i * 2 + 1] = closest[1];
+					}
+					if (this.objectTypes) this.objectTypes[i] = objTypeTemp;
+					if (this.objectDirs) this.objectDirs[i] = objDirTemp;
+				} else {
+					this.rays[i] = Infinity;
+				}
 			}
 		}
 

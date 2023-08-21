@@ -82,8 +82,7 @@ const gameLoop = () => {
 			player2d.rayCoords,
 			player2d.objectTypes,
 			player2d.objectDirs,
-			player2d.playerX,
-			player2d.playerY,
+			player2d.extraRay,
 			player2d.rayAngles,
 			player2d.playerRays,
 			player2d.playerW
