@@ -6,11 +6,11 @@ export default class Walls3d {
 	private wallW: number;
 	private wallH: number;
 	private world3dDiag: number;
-	private wallTexture: HTMLImageElement;
-	private wallTextureDark: HTMLImageElement;
-	private bgTopImg: HTMLImageElement;
 	private bgTopX: number;
 	private wallCenterHeight: number;
+	private wMultiplier: number;
+	private texturePaths: string[];
+	private textures: any;
 
 	constructor(world3d: HTMLCanvasElement, ctx3d: CanvasRenderingContext2D, wallW: number, wallH: number) {
 		this.world3d = world3d;
@@ -18,47 +18,66 @@ export default class Walls3d {
 		this.wallW = wallW;
 		this.wallH = wallH;
 		this.world3dDiag = Math.sqrt(Math.pow(world3d.width, 2) + Math.pow(world3d.height, 2));
-		this.wallTexture = new Image();
-		this.wallTexture.src = '../public/stoneTexture.png';
-		this.wallTextureDark = new Image();
-		this.wallTextureDark.src = '../public/stoneTextureDark.png';
-		this.bgTopImg = new Image();
-		this.bgTopImg.src = '../public/stars.jpg';
 		this.bgTopX = 0;
 		this.wallCenterHeight = this.world3d.height / 2.5;
+		this.wMultiplier = 0;
+		this.texturePaths = ['../public/wallTexture.png', '../public/wallTextureDark.png', '../public/stars.jpg'];
+		this.textures = {};
+	}
+
+	public async setUp() {
+		const preloadImages = () => {
+			const promises = this.texturePaths.map((path: string) => {
+				return new Promise((resolve, reject) => {
+					const name = path.split('/').pop()?.split('.')[0];
+					const image = new Image();
+
+					image.src = path;
+					image.onload = () => {
+						resolve([name, image]);
+					};
+					image.onerror = () => reject(`Image failed to load: ${path}`);
+				});
+			});
+			return Promise.all(promises);
+		};
+
+		const imgArraytemp: any[] = await preloadImages();
+		this.textures = Object.fromEntries(imgArraytemp);
+
+		this.wMultiplier = Math.abs(this.textures.wallTexture.width / this.wallW);
 	}
 
 	private drawBackground() {
 		//multiply bg img width by 4 so when you rotate 90deg, you're 1/4th through the img
-		this.bgTopImg.width = this.world3d.width * 2;
-		this.bgTopImg.height = this.world3d.height;
+		this.textures.stars.width = this.world3d.width * 2;
+		this.textures.stars.height = this.world3d.height;
 
 		//reset bg img position if ends of img are in view
 		if (this.bgTopX > 0) {
-			this.bgTopX = -this.bgTopImg.width;
-		} else if (this.bgTopX < -this.bgTopImg.width) {
+			this.bgTopX = -this.textures.stars.width;
+		} else if (this.bgTopX < -this.textures.stars.width) {
 			this.bgTopX = 0;
 		}
 
 		this.ctx3d.drawImage(
-			this.bgTopImg,
+			this.textures.stars,
 			this.bgTopX,
 			this.wallCenterHeight,
-			this.bgTopImg.width,
-			-this.bgTopImg.height
+			this.textures.stars.width,
+			-this.textures.stars.height
 		);
 		this.ctx3d.drawImage(
-			this.bgTopImg,
-			this.bgTopX + this.bgTopImg.width,
+			this.textures.stars,
+			this.bgTopX + this.textures.stars.width,
 			this.wallCenterHeight,
-			this.bgTopImg.width,
-			-this.bgTopImg.height
+			this.textures.stars.width,
+			-this.textures.stars.height
 		);
 		this.ctx3d.fillStyle = `rgba(0,0,0,0.7)`;
 		this.ctx3d.fillRect(0, 0, this.world3d.width, this.wallCenterHeight);
 
 		this.ctx3d.fillStyle = `rgb(15, 35, 15)`;
-		// this.ctx3d.fillStyle = `rgb(200, 200, 200)`;
 		this.ctx3d.fillRect(
 			0,
 			this.wallCenterHeight,
@@ -68,11 +87,11 @@ export default class Walls3d {
 	}
 
 	public setBgTopXMouseMove(moveDelta: number) {
-		this.bgTopX -= ((this.bgTopImg.width / 180) * moveDelta) / 20;
+		this.bgTopX -= ((this.textures.stars.width / 180) * moveDelta) / 20;
 	}
 
 	public setbgTopX(rotAmt: number, moveDirLR: string | null) {
-		const xDelta = (this.bgTopImg.width / 180) * rotAmt;
+		const xDelta = (this.textures.stars.width / 180) * rotAmt;
 		if (moveDirLR === 'left') {
 			this.bgTopX += xDelta;
 		} else if (moveDirLR === 'right') {
@@ -94,7 +113,8 @@ export default class Walls3d {
 		},
 		rayAngles: Float32Array | null,
 		playerRays: IPlayerRays[],
-		playerW: number
+		playerW: number,
+		distToProjectionPlane: number
 	) {
 		if (!rays || !rayAngles || !rayCoords) return;
 		this.drawBackground();
@@ -128,10 +148,14 @@ export default class Walls3d {
 				offset = this.wallW - offset;
 				offset2 = this.wallW - offset2;
 			}
+			offset *= this.wMultiplier;
+			offset2 *= this.wMultiplier;
 
-			const wallShiftAmt = (this.world3d.height * 50) / dist;
-			const wallStartTop = this.wallCenterHeight - wallShiftAmt;
-			const wallEndBottom = this.wallCenterHeight + wallShiftAmt;
+			const wallHeight = (this.wallH / dist) * distToProjectionPlane;
+			// const wallHalfHeight = (this.world3d.height * 50) / dist;
+			const wallHalfHeight = wallHeight / 2;
+			const wallStartTop = this.wallCenterHeight - wallHalfHeight;
+			const wallEndBottom = this.wallCenterHeight + wallHalfHeight;
 
 			// let wallDarkness = dist / this.world3d.height;
 			// wallDarkness = (this.world3dDiag - dist) / this.world3dDiag;
@@ -160,15 +184,15 @@ export default class Walls3d {
 			let sWidth = 0;
 			let chunk2Offset: number | null = null;
 
-			sWidth = offset <= offset2 ? offset2 - offset : this.wallW - offset + offset2;
+			sWidth = offset <= offset2 ? offset2 - offset : this.textures.wallTexture.width - offset + offset2;
 			if (offset > offset2) {
-				chunk2Offset = -(this.wallW - offset);
+				chunk2Offset = -(this.textures.wallTexture.width - offset);
 			}
 
 			if (objectDirs?.[i] === 0 || objectDirs?.[i] === 2) {
-				curImg = this.wallTexture;
+				curImg = this.textures.wallTexture;
 			} else {
-				curImg = this.wallTextureDark;
+				curImg = this.textures.wallTextureDark;
 			}
 
 			this.ctx3d.drawImage(

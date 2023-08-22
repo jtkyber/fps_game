@@ -27,7 +27,7 @@ export default class Player2d {
 	private fovRad: number;
 	public rotation: number;
 	private angle: number;
-	private distToProjectionPlane: number;
+	public distToProjectionPlane: number;
 	public rayAngles: Float32Array | null;
 	private rayDensityAdjustment: number;
 	public rotDir: string | null;
@@ -49,6 +49,7 @@ export default class Player2d {
 	public playerRays: IPlayerRays[];
 	public playerW: number;
 	private renderDist: number;
+	private playerCollisionMargin: number;
 
 	constructor(
 		world2d: HTMLCanvasElement,
@@ -84,11 +85,11 @@ export default class Player2d {
 		this.rayOpacity = 0.26;
 		this.fov = 60;
 		this.fovRad = this.fov * (Math.PI / 180);
-		this.rotation = 332;
+		this.rotation = 300;
 		this.angle = this.rotation + 90;
 		this.distToProjectionPlane = world2d.width / 2 / Math.tan(this.fovRad / 2);
 		this.rayAngles = null;
-		this.rayDensityAdjustment = 8;
+		this.rayDensityAdjustment = 10;
 		this.rotDir = null;
 		this.rotAmt = 2 / this.speedMultiplier;
 		this.moveDirFB = null;
@@ -102,12 +103,13 @@ export default class Player2d {
 			right: Infinity,
 			backward: Infinity,
 		};
-		this.playerX = 650;
-		this.playerY = 120;
+		this.playerX = 200;
+		this.playerY = 200;
 		this.devMode = true;
 		this.playerRays = [];
 		this.playerW = 20;
 		this.renderDist = 800;
+		this.playerCollisionMargin = 20;
 	}
 
 	public setUp() {
@@ -166,10 +168,10 @@ export default class Player2d {
 		const dirRadiansStrafe = dirRadians + Math.PI / 2;
 		const strafeX = (this.moveAmt * Math.cos(90 * (Math.PI / 180) - dirRadiansStrafe)) / 2;
 		const strafeY = (this.moveAmt * Math.cos(dirRadiansStrafe)) / 2;
-		const hittingF = this.moveDirRays.foreward < 30;
-		const hittingL = this.moveDirRays.left < 30;
-		const hittingR = this.moveDirRays.right < 30;
-		const hittingB = this.moveDirRays.backward < 30;
+		const hittingF = this.moveDirRays.foreward < this.playerCollisionMargin;
+		const hittingL = this.moveDirRays.left < this.playerCollisionMargin;
+		const hittingR = this.moveDirRays.right < this.playerCollisionMargin;
+		const hittingB = this.moveDirRays.backward < this.playerCollisionMargin;
 
 		if (this.moveDirFB === 'forwards') {
 			if (!hittingF) {

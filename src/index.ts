@@ -85,7 +85,8 @@ const gameLoop = () => {
 			player2d.extraRay,
 			player2d.rayAngles,
 			player2d.playerRays,
-			player2d.playerW
+			player2d.playerW,
+			player2d.distToProjectionPlane
 		);
 
 		one: if (player2d.playerX !== lastRecordedPlayerPos.x || player2d.playerY !== lastRecordedPlayerPos.y) {
@@ -113,7 +114,7 @@ const gameLoop = () => {
 	}
 };
 
-const setUp = () => {
+const setUp = async () => {
 	walls2d = new Walls2d(world2d, ctx2d);
 	walls3d = new Walls3d(world3d, ctx3d, walls2d.wallW, walls2d.wallH);
 	player2d = new Player2d(
@@ -126,7 +127,9 @@ const setUp = () => {
 		walls2d.wallH,
 		frameRate
 	);
-	player2d.setUp();
+	await player2d.setUp();
+	await walls3d.setUp();
+
 	players = new Players(world2d, ctx2d);
 	gameLoop();
 };
